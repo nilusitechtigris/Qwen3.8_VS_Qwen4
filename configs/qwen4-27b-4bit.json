@@ -1,0 +1,22 @@
+{
+  "name": "qwen4-27b-4bit",
+  "description": "PLACEHOLDER until Qwen4 is released: use the same quantization family as the Qwen3.8 run (e.g. the matching MLX 4-bit build), copy the sampling settings from the Qwen4 model card, and keep max_tokens identical to the Qwen3.8 run.",
+  "base_url": "http://localhost:1234/v1",
+  "model": "qwen4-27b-mlx",
+  "api_key_env": null,
+  "samples": 1,
+  "concurrency": 1,
+  "timeout_s": 7200,
+  "params": {
+    "temperature": 1.0,
+    "top_p": 0.95,
+    "presence_penalty": 0.0,
+    "max_tokens": 32768
+  },
+  "extra_body": {
+    "top_k": 20,
+    "min_p": 0.0,
+    "repetition_penalty": 1.0,
+    "chat_template_kwargs": {"enable_thinking": true}
+  }
+}
