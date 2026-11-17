@@ -133,6 +133,9 @@ For a fair comparison, also run Qwen3.8 again under a new run name rather than r
 python3 compare.py results/qwen3.8-27b-4bit results/qwen4-27b-4bit
 ```
 
+To chart a run the same way as the [pilot overview](results/qwen3.8-27b-nvfp4-ollama/README.md), use
+`python3 tools/plot_run.py results/<run>` (it writes SVGs into `results/<run>/charts/`).
+
 `compare.py` writes `reports/<A>_vs_<B>.md` (and `.json`) containing:
 
 - the weighted-score delta, with a **paired bootstrap 95% CI** over tasks
@@ -197,7 +200,10 @@ turn the prior into a measured baseline before Qwen4 arrives.
 
 The pilot ran on 2026-11-16/17: Qwen3.8-27B NVFP4 4-bit through Ollama (`configs/qwen3.8-27b-4bit-ollama.json`),
 thinking on, `reasoning_effort` medium, `max_tokens` 32768, one sample per task. Raw responses, grades and the
-summary are in `results/qwen3.8-27b-nvfp4-ollama/`.
+summary are in `results/qwen3.8-27b-nvfp4-ollama/`. **Charts, per-tier and per-category breakdowns and the audit of
+every failure are in the [results overview](results/qwen3.8-27b-nvfp4-ollama/README.md).**
+
+[![Qwen3.8-27B pilot: weighted score 50.0, 79 of 100 tasks passed](results/qwen3.8-27b-nvfp4-ollama/charts/score.svg)](results/qwen3.8-27b-nvfp4-ollama/README.md)
 
 | Tier | Prior pass rate | Observed |
 |---|---:|---:|
@@ -231,7 +237,7 @@ tasks/          tasks.jsonl (the frozen benchmark), weights.json (calibrated wei
                 tasks.sha256, selftest_refs.jsonl
 configs/        model configs (Qwen3.8 ready, Qwen4 placeholder, mock)
 tools/          mock_server.py (fake OpenAI-compatible server for pipeline tests), audit_run.py (grading audit),
-                calibrate_weights.py (fit weights to a pilot run)
+                calibrate_weights.py (fit weights to a pilot run), plot_run.py (SVG charts for a run)
 run.py          run a model     grade.py   grade a run     compare.py   A vs B report
 calibrate.py    prior vs observed     selftest.py   validate every task's grader
 ```
