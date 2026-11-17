@@ -21,9 +21,9 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
-from bench.client import ChatError, chat, list_models
+from bench.client import ChatError, chat, list_models, ollama_unload
 from bench.common import ROOT, TASKS_PATH, load_tasks
-from bench.envs import run_episode
+from bench.envs import EPISODE_TOKEN_BUDGET, run_episode
 
 
 def select(tasks, only=None, categories=None, tiers=None):
@@ -110,7 +110,8 @@ def main():
         print("WARNING: tasks.jsonl changed since this run started - results will mix task versions!", file=sys.stderr)
     meta.update({
         "run_name": run_name, "config": {k: v for k, v in cfg.items() if k != "api_key"},
-        "tasks_sha256": tasks_sha, "samples": samples, "python": sys.version.split()[0],
+        "tasks_sha256": tasks_sha, "samples": samples, "agent_episode_token_budget": EPISODE_TOKEN_BUDGET,
+        "python": sys.version.split()[0],
         "platform": platform.platform(), "started": meta.get("started") or datetime.now(timezone.utc).isoformat(),
     })
     meta_path.write_text(json.dumps(meta, indent=2))
@@ -120,6 +121,13 @@ def main():
     print(f"{run_name}: {len(tasks)} tasks x {samples} samples, {len(todo)} to run ({len(done)} already done)")
     lock = threading.Lock()
     t_start = time.time()
+    unload = cfg.get("unload_between_tasks")
+    if unload not in (None, "ollama"):
+        sys.exit(f"unknown unload_between_tasks value: {unload!r} (supported: \"ollama\")")
+    if unload and concurrency != 1:
+        sys.exit("unload_between_tasks requires concurrency 1")
+    if unload:
+        ollama_unload(cfg)  # start from a clean server, not one holding caches from earlier requests
 
     def work(item):
         t, s = item
@@ -132,6 +140,8 @@ def main():
         with lock:
             with open(resp_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(line, ensure_ascii=False) + "\n")
+        if unload:
+            ollama_unload(cfg)
         return t["id"], s, err, rec.get("finish_reason"), rec.get("latency_s")
 
     n = 0

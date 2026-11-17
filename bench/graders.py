@@ -58,14 +58,21 @@ def run_python_tests(code: str, test_code: str, timeout: float) -> tuple[bool, s
 
 
 # ----------------------------------------------------------------------------- answer graders
+# "Turkey (Türkiye)", "ytterbium (Yb)": a trailing parenthetical is a clarification and is ignored,
+# unless it hedges with an alternative ("Bora (or Cem)").
+_PAREN_TAIL = re.compile(r"^(.*\S)\s*\(([^()]*)\)\W*$", re.S)
+
+
 def _g_exact(spec, ans):
     if ans is None:
         return _result(False, None, "no FINAL ANSWER found")
     kw = dict(keep_case=spec.get("case_sensitive", False), remove_spaces=spec.get("ignore_spaces", False))
-    got = norm_text(ans, **kw)
-    for a in spec["answers"]:
-        if got == norm_text(a, **kw):
-            return _result(True, ans)
+    targets = {norm_text(a, **kw) for a in spec["answers"]}
+    if norm_text(ans, **kw) in targets:
+        return _result(True, ans)
+    m = _PAREN_TAIL.match(ans.strip())
+    if m and norm_text(m.group(1), **kw) in targets and not re.match(r"\s*or\b", m.group(2), re.I):
+        return _result(True, ans)
     return _result(False, ans, "expected one of " + repr(spec["answers"][:3]))
 
 

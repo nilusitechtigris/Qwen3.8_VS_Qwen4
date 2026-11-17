@@ -9,15 +9,26 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 TASKS_PATH = ROOT / "tasks" / "tasks.jsonl"
+# Calibrated scoring weights (tools/calibrate_weights.py). Kept outside tasks.jsonl so the task file and its sha256
+# do not change; when present, every task's "weight" is taken from here and the tier weight moves to "tier_weight".
+WEIGHTS_PATH = ROOT / "tasks" / "weights.json"
 
 _THINK_BLOCK = re.compile(r"<think>.*?</think>", re.S | re.I)
-_FINAL = re.compile(r"FINAL\s*ANSWER\s*[:：]", re.I)
+_FINAL = re.compile(r"FINAL\s*ANSWER\s*[*_`]*\s*[:：]", re.I)  # also "**FINAL ANSWER**: x"
 _BOXED = re.compile(r"\\boxed\{")
 
 
-def load_tasks(path: Path | str = TASKS_PATH) -> list[dict]:
+def load_tasks(path: Path | str = TASKS_PATH, calibrated_weights: bool = True) -> list[dict]:
     with open(path, encoding="utf-8") as f:
-        return [json.loads(line) for line in f if line.strip()]
+        tasks = [json.loads(line) for line in f if line.strip()]
+    if calibrated_weights and Path(path) == TASKS_PATH and WEIGHTS_PATH.exists():
+        weights = json.loads(WEIGHTS_PATH.read_text(encoding="utf-8"))["weights"]
+        missing = [t["id"] for t in tasks if t["id"] not in weights]
+        if missing:
+            raise ValueError(f"{WEIGHTS_PATH} has no weight for {missing}")
+        for t in tasks:
+            t["tier_weight"], t["weight"] = t["weight"], weights[t["id"]]
+    return tasks
 
 
 def strip_thinking(text: str | None) -> str:
@@ -55,7 +66,10 @@ def clean_answer(ans: str) -> str:
     ans = ans.strip()
     # strip markdown / latex wrappers
     for _ in range(3):
-        ans = ans.strip().strip("*").strip("`").strip()
+        ans = ans.strip()
+        if ans.endswith(("`.", "*.", "$.")):  # sentence period after a closing wrapper is never part of the answer
+            ans = ans[:-1]
+        ans = ans.strip("*").strip("`").strip()
         if len(ans) >= 2 and ans[0] == ans[-1] and ans[0] in "\"'$":
             ans = ans[1:-1]
         if ans.startswith("\\(") and ans.endswith("\\)"):
@@ -93,7 +107,7 @@ def extract_final(text: str | None) -> str | None:
 def norm_text(s: str, *, keep_case: bool = False, remove_spaces: bool = False) -> str:
     s = unicodedata.normalize("NFC", s)
     if not keep_case:
-        s = s.lower()
+        s = s.replace("\u0130", "i").lower()  # Turkish capital İ: str.lower() would give "i" + combining dot
     s = s.replace("\u2019", "'").replace("\u2018", "'").replace("\u201c", '"').replace("\u201d", '"')
     s = re.sub(r"\s+", " ", s).strip()
     s = s.strip(" .;:!\"'`*")

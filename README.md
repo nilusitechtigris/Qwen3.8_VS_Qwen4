@@ -15,7 +15,10 @@
 
 ## At a glance
 
-Each task's weight equals its tier. That gives 314 points in total, and the score is `100 × earned / 314`.
+Each task's base weight is its tier (314 points in total). After the Qwen3.8 pilot, the weights were calibrated so
+that the pilot scores exactly **50.0**: the 21 tasks Qwen3.8 failed count ×2.609, which makes 454 points in total.
+The score is `100 × earned / total weight`. The calibrated weights live in `tasks/weights.json`; `tasks/tasks.jsonl`
+(prompts, answers, graders) is unchanged. See [Pilot result and calibrated weights](#pilot-result-and-calibrated-weights).
 
 | Tier | Weight | Tasks | Points | Prior pass rate (Qwen3.8) | Purpose |
 |---|---:|---:|---:|---:|---|
@@ -32,7 +35,7 @@ Each task's weight equals its tier. That gives 314 points in total, and the scor
 | code | 14 | 45 | algorithms with large-input time limits, strict spec parsing | hidden unit tests in a subprocess |
 | instruction | 11 | 31 | stacked verifiable constraints (lipogram, acrostics, exact word counts) | constraint checkers |
 | knowledge | 10 | 31 | long-tail facts (Unicode, RFCs, ISO codes, math history) | exact answers |
-| long_context | 8 | 28 | needles with decoys, variable chasing, aggregation, state tracking (up to ~20k tokens) | exact answers |
+| long_context | 8 | 28 | needles with decoys, variable chasing, aggregation, state tracking (up to ~37k tokens) | exact answers |
 | trace | 8 | 29 | executing code mentally: Python gotchas, stack/register machines, xorshift, Life, Rule 110, Brainfuck | exact output |
 | agent | 8 | 24 | multi-turn tool use in simulated environments (pagination, stale caches, planning under a step budget) | final answer and/or final environment state |
 | structured | 6 | 16 | JSON/CSV extraction, regex writing, SQLite (window functions, recursive CTE) | JSON/CSV checkers, regex test-suite, SQL executed on SQLite |
@@ -48,15 +51,27 @@ python3 selftest.py
 ```
 
 The self-test proves the benchmark itself is sound, with no model involved. For every task, the reference answer
-must pass. It must still pass when preceded by a `<think>` block that contains a wrong answer. A plausible wrong
-answer must fail (88 tasks have one), and an empty reply must fail.
+must pass. It must still pass when preceded by a `<think>` block that contains a wrong answer, and (for the 62
+FINAL-ANSWER tasks) in 13 formats real models use: `**FINAL ANSWER**: x`, `Final Answer:`, a markdown heading, the
+answer on the next line, `$x$`, `\boxed{x}`, backticks, a trailing period, a capitalised (or Turkish `İ`) first
+letter, and so on. A plausible wrong answer must fail (88 tasks have one), and an empty reply must fail.
 
 ### 1. Serve Qwen3.8-27B 4-bit
 
 Any OpenAI-compatible server works. On a Mac, the simplest is LM Studio with
 [`lmstudio-community/Qwen3.8-27B-MLX-4bit`](https://hf.co/lmstudio-community/Qwen3.8-27B-MLX-4bit):
-download it, load it with a **context length of at least 65,536 tokens** (the longest prompt is about 20k tokens,
-plus up to 32k output tokens), and start the local server (default `http://localhost:1234/v1`).
+download it, load it with a **context length of at least 73,728 tokens** (the longest prompts, LONG-01 and LONG-02,
+are about 37k Qwen tokens, plus up to 32k output tokens), and start the local server (default `http://localhost:1234/v1`).
+
+**Alternative: Ollama.** `ollama pull qwen3.8:27b` (NVFP4 4-bit, MLX runner), then
+`ollama create qwen3.8-27b-bench -f configs/ollama/Modelfile.qwen3.8-27b-bench` and use
+`configs/qwen3.8-27b-4bit-ollama.json` (reasoning effort pinned to `medium`).
+
+**Memory on a 24 GB Mac.** The 4-bit 27B weights take about 17.5 GB, and the full-attention KV cache adds about
+64 KB per token (≈ 2.3 GB for a 37k-token prompt). With macOS's default GPU memory limit, prompts above ~700 tokens
+fail with a Metal out-of-memory error. Raising the limit (`sudo sysctl iogpu.wired_limit_mb=21504`, reset at reboot)
+makes all prompts fit, but the two longest tasks still run close to the limit and their output budget is capped
+by the context window. A 32 GB+ machine avoids all of this.
 
 Then put the exact model id your server exposes into `configs/qwen3.8-27b-4bit.json`:
 
@@ -86,8 +101,21 @@ python3 calibrate.py results/qwen3.8-27b-4bit
 ```
 
 This compares the observed score with the prior, tier by tier, and lists surprises: expected-easy tasks that
-failed and expected-hard tasks that passed. If the score lands far outside 45–55, retune `est_p` or tiers in
-`build/cat_*.py`, rebuild (see below), and repeat. **Freeze the task set before Qwen4 is released.** Every run
+failed and expected-hard tasks that passed.
+
+Before trusting the score, audit every failure by hand:
+
+```bash
+python3 tools/audit_run.py results/qwen3.8-27b-4bit --failed
+```
+
+It shows what was extracted, what was expected and the end of the model's reply. For each failure, decide whether
+the model was really wrong or the task is at fault (an ambiguous prompt, an accepted-answer list that is too
+narrow). Raw responses are stored separately from grades, so a grader or accepted-answer fix only needs
+`python3 grade.py results/<run>`, never a new model run. Only a broken prompt requires re-running that one task
+(`--only TASK-ID`). If the score lands far outside 45–55, either make tasks harder or easier in
+`build/cat_*.py` and rebuild (see below), or keep the tasks and calibrate the weights to the pilot with
+`python3 tools/calibrate_weights.py results/<run> --write` (what was done for Qwen3.8). **Freeze the task set before Qwen4 is released.** Every run
 records the SHA-256 of `tasks/tasks.jsonl`, and grading warns if it changed.
 
 ### 4. When Qwen4 is out
@@ -97,6 +125,9 @@ Edit `configs/qwen4-27b-4bit.json`: set the model id, and copy the sampling sett
 ```bash
 python3 run.py --config configs/qwen4-27b-4bit.json
 ```
+
+For a fair comparison, also run Qwen3.8 again under a new run name rather than reusing the calibration run (see
+[Pilot result and calibrated weights](#pilot-result-and-calibrated-weights) for why). Then compare the two fresh runs:
 
 ```bash
 python3 compare.py results/qwen3.8-27b-4bit results/qwen4-27b-4bit
@@ -117,7 +148,10 @@ python3 compare.py results/qwen3.8-27b-4bit results/qwen4-27b-4bit
 3. **Thinking on** for both, each model at its **officially recommended sampling settings**. For Qwen3.8 thinking
    mode the model card says: `temperature 1.0, top_p 0.95, top_k 20, min_p 0, presence_penalty 0, repetition_penalty 1`.
 4. Use the **same `max_tokens`** (default 32768) and the same `reasoning_effort` if you set one. A truncated
-   answer counts as a failure, and `summary.md` reports how many samples were truncated.
+   answer counts as a failure, and `summary.md` reports how many samples were truncated. Agent episodes also have
+   a fixed budget of 98,304 output tokens in total (3 full turns, `EPISODE_TOKEN_BUDGET` in `bench/envs.py`): a
+   model that keeps hitting `max_tokens` would otherwise re-think every turn and could run for ~12 hours on one
+   task. When the budget runs out the episode stops and is graded on the state reached (`stopped` in the record).
 5. No system prompt (the task prompts are self-contained). The same context length setting for both.
 6. Sampling at temperature 1.0 is noisy. One sample per task gives a rough answer; **`--samples 3`** gives
    per-task pass rates and a much tighter CI. The score then uses the mean pass rate per task.
@@ -159,14 +193,45 @@ pushed up until the prior landed at 50.
 **These are judgement calls, not measurements.** Qwen3.8 is available today, so the pilot run in step 3 is how you
 turn the prior into a measured baseline before Qwen4 arrives.
 
+### Pilot result and calibrated weights
+
+The pilot ran on 2026-11-16/17: Qwen3.8-27B NVFP4 4-bit through Ollama (`configs/qwen3.8-27b-4bit-ollama.json`),
+thinking on, `reasoning_effort` medium, `max_tokens` 32768, one sample per task. Raw responses, grades and the
+summary are in `results/qwen3.8-27b-nvfp4-ollama/`.
+
+| Tier | Prior pass rate | Observed |
+|---|---:|---:|
+| T1 warm-up | 0.97 | 8/8 |
+| T2 standard | 0.87 | 19/20 |
+| T3 hard | 0.59 | 30/33 |
+| T4 very hard | 0.41 | 19/28 |
+| T5 frontier | 0.17 | 3/11 |
+
+With tier weights it scored **72.3** (79/100 solved), well above the 49.8 prior. 13 of the 21 failures ran out of
+`max_tokens` before answering; long_context, structured and multilingual were solved completely. Every failure was
+audited by hand (`tools/audit_run.py --failed`): all are genuine model errors after one grader fix (an answer such as
+"Turkey (Türkiye)" is now accepted; a hedge such as "X (or Y)" is not).
+
+Instead of rewriting tasks, the weights were calibrated to the pilot with `tools/calibrate_weights.py`: a task keeps
+its tier weight if the pilot passed it and gets tier × F if the pilot failed it, with F = 2.609 chosen so the pilot
+scores exactly 50.0. Half of the total weight now sits on the 21 tasks Qwen3.8 could not solve, which is where Qwen4
+can show progress; regressions on the other 79 tasks still count, at their tier weight.
+
+**Caveat.** The weights are fitted to a single sample at temperature 1.0. Some of the 21 failures were bad luck, and
+they now carry extra weight, so a fresh Qwen3.8 run will usually score a few points above 50. That is why the
+comparison should use a fresh Qwen3.8 run next to the Qwen4 run (ideally `--samples 2` or more for both), not the
+calibration run. Both runs are scored with the same `tasks/weights.json`; `summary.md` records its SHA-256.
+
 ## Repository layout
 
 ```
 bench/          grading core: answer extraction, graders, IF checkers, agent environments, HTTP client
 build/          task generators, one module per category (cat_*.py) + build_tasks.py
-tasks/          tasks.jsonl (the frozen benchmark), TASKS.md (index), tasks.sha256, selftest_refs.jsonl
+tasks/          tasks.jsonl (the frozen benchmark), weights.json (calibrated weights), TASKS.md (index),
+                tasks.sha256, selftest_refs.jsonl
 configs/        model configs (Qwen3.8 ready, Qwen4 placeholder, mock)
-tools/          mock_server.py, a fake OpenAI-compatible server for pipeline tests
+tools/          mock_server.py (fake OpenAI-compatible server for pipeline tests), audit_run.py (grading audit),
+                calibrate_weights.py (fit weights to a pilot run)
 run.py          run a model     grade.py   grade a run     compare.py   A vs B report
 calibrate.py    prior vs observed     selftest.py   validate every task's grader
 ```
@@ -204,5 +269,5 @@ python3 run.py --config configs/mock.json --run-name mock-test
   `hashlib`, and the Mersenne exponent from a Lucas–Lehmer test.
 - **4-bit effects.** 4-bit quantisation costs a few points, and different 4-bit methods differ. Compare like
   with like.
-- **Tiers are priors too.** After the Qwen3.8 pilot, consider re-labelling tasks whose observed difficulty
-  clearly contradicts their tier, but do it before freezing.
+- **Weights are fitted to one pilot.** The calibrated weights come from a single Qwen3.8 sample; see the caveat in
+  [Pilot result and calibrated weights](#pilot-result-and-calibrated-weights).

@@ -1,0 +1,12 @@
+# Benchmark variant of qwen3.8:27b (Ollama library build, NVFP4 4-bit weights).
+# Sampling = Qwen3.8 model-card thinking-mode recommendation (identical to the library defaults);
+# the only change is the context window: 57344 tokens fits every prompt (longest ~37k tokens) with 32k output tokens,
+# except LONG-01/LONG-02 (~20k output tokens left). Larger values do not fit in memory on a 24 GB Mac.
+FROM qwen3.8:27b
+PARAMETER num_ctx 57344
+PARAMETER temperature 1
+PARAMETER top_p 0.95
+PARAMETER top_k 20
+PARAMETER min_p 0
+PARAMETER presence_penalty 0
+PARAMETER repeat_penalty 1
