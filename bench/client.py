@@ -72,3 +72,33 @@ def chat(cfg: dict, messages: list[dict], retries: int = 3):
                 }
         time.sleep(min(60, 5 * 2 ** attempt))
     raise ChatError(last_err or "unknown error")
+
+
+def ollama_unload(cfg, wait_s=120):
+    """Unload the model from an Ollama server and wait until it is gone.
+
+    Used between tasks when the config sets "unload_between_tasks": "ollama". Ollama's MLX runner keeps a prefix
+    cache of every prompt it has seen and does not free it, so on a small-memory machine memory use grows task by
+    task until the system swaps heavily. Unloading after each task frees that memory and also guarantees that no
+    task benefits from another task's cache.
+    """
+    root = cfg["base_url"].rstrip("/")
+    if root.endswith("/v1"):
+        root = root[:-3]
+    try:
+        _post(root + "/api/generate", {"model": cfg["model"], "keep_alive": 0}, _headers(cfg), 60)
+    except (urllib.error.URLError, TimeoutError, ConnectionError, json.JSONDecodeError) as e:
+        print(f"warning: could not unload {cfg['model']}: {e}", flush=True)
+        return False
+    deadline = time.time() + wait_s
+    while time.time() < deadline:
+        try:
+            with urllib.request.urlopen(urllib.request.Request(root + "/api/ps", headers=_headers(cfg)), timeout=30) as r:
+                loaded = [m.get("name", "") for m in json.loads(r.read().decode("utf-8")).get("models", [])]
+        except (urllib.error.URLError, TimeoutError, ConnectionError, json.JSONDecodeError):
+            loaded = []
+        if not any(n == cfg["model"] or n.split(":")[0] == cfg["model"].split(":")[0] for n in loaded):
+            return True
+        time.sleep(1)
+    print(f"warning: {cfg['model']} still loaded after {wait_s}s", flush=True)
+    return False

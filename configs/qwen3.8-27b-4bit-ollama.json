@@ -1,0 +1,22 @@
+{
+  "name": "qwen3.8-27b-nvfp4-ollama",
+  "description": "Qwen3.8-27B NVFP4 4-bit (Ollama library qwen3.8:27b) served by Ollama via configs/ollama/Modelfile.qwen3.8-27b-bench (num_ctx 57344). Thinking on, reasoning_effort pinned to 'medium' (Ollama's default for this model; the model card's headline scores use 'xhigh'). Sampling = model-card thinking-mode settings. Tested on a 24 GB M4 Pro with iogpu.wired_limit_mb=21504. For Qwen4, use the matching Ollama 4-bit build with the same num_ctx, max_tokens and reasoning_effort. unload_between_tasks frees Ollama's prompt cache after every task (otherwise memory grows task by task on a 24 GB Mac).",
+  "base_url": "http://localhost:11434/v1",
+  "model": "qwen3.8-27b-bench",
+  "api_key_env": null,
+  "samples": 1,
+  "concurrency": 1,
+  "timeout_s": 10800,
+  "params": {
+    "temperature": 1.0,
+    "top_p": 0.95,
+    "presence_penalty": 0.0,
+    "max_tokens": 32768,
+    "reasoning_effort": "medium"
+  },
+  "extra_body": {
+    "top_k": 20,
+    "min_p": 0.0
+  },
+  "unload_between_tasks": "ollama"
+}

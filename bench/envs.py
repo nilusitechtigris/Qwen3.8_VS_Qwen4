@@ -237,18 +237,34 @@ def make_env(task):
 
 
 # ============================================================================== episode loop
-def run_episode(task, respond, max_turns=None):
+# Total output tokens (thinking included) one agent episode may spend: 3 full turns at max_tokens 32768.
+# Without it, a model that keeps hitting max_tokens re-thinks from scratch every turn (only visible text is kept
+# in the conversation) and a 30-turn episode can run for ~12 hours on a local machine. When the budget is used up
+# the episode stops before the next turn and is graded on the state reached so far. It is part of the harness,
+# so it applies identically to every model; it is recorded in meta.json.
+EPISODE_TOKEN_BUDGET = 98_304
+
+
+def run_episode(task, respond, max_turns=None, token_budget=None):
     """respond(messages) -> (content, reasoning, usage). Returns a record dict for responses.jsonl."""
     env = make_env(task)
     max_turns = max_turns or task["grader"].get("max_turns", 20)
+    token_budget = token_budget or task["grader"].get("token_budget", EPISODE_TOKEN_BUDGET)
     messages = [{"role": "user", "content": task["prompt"]}]
-    calls, usage_total, turns = [], {}, 0
+    calls, usage_total, turns, spent, stopped = [], {}, 0, 0, None
     content, reasoning = "", ""
-    for turns in range(1, max_turns + 1):
+    for turn in range(1, max_turns + 1):
+        if spent >= token_budget:
+            stopped = "token_budget"
+            break
+        turns = turn
         content, reasoning, usage = respond(messages)
         for k, v in (usage or {}).items():
             if isinstance(v, int):
                 usage_total[k] = usage_total.get(k, 0) + v
+        ct = (usage or {}).get("completion_tokens")
+        # servers that report no usage: estimate ~4 characters per token
+        spent += ct if isinstance(ct, int) else (len(content or "") + len(reasoning or "")) // 4
         visible = strip_thinking(content)
         messages.append({"role": "assistant", "content": visible})
         call, err = parse_call(visible)
@@ -263,7 +279,9 @@ def run_episode(task, respond, max_turns=None):
         if extract_final(visible) is not None:
             break
         messages.append({"role": "user", "content": "Please either CALL a tool or give your FINAL ANSWER."})
-    return {"content": content, "reasoning": reasoning, "calls": calls, "turns": turns,
+    else:
+        stopped = "max_turns"
+    return {"content": content, "reasoning": reasoning, "calls": calls, "turns": turns, "stopped": stopped,
             "transcript": messages, "usage": usage_total}
 
 

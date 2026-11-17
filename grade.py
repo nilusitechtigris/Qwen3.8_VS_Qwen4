@@ -15,7 +15,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from bench import TIER_NAMES
-from bench.common import TASKS_PATH, load_tasks
+from bench.common import TASKS_PATH, WEIGHTS_PATH, load_tasks
 from bench.graders import grade
 
 
@@ -72,6 +72,8 @@ def grade_run(run_dir: Path, quiet=False):
         "tasks_attempted": len(attempted),
         "tasks_total": len(tasks),
         "samples_graded": len(grades),
+        "weights": ("tasks/weights.json sha256 " + hashlib.sha256(WEIGHTS_PATH.read_bytes()).hexdigest()
+                    if WEIGHTS_PATH.exists() else "tier weights (1-5)"),
         "weighted_score": round(weighted(tasks, rate), 2),
         "weighted_score_attempted_only": round(weighted(attempted, rate), 2) if attempted else 0.0,
         "tasks_solved": round(sum(rate.values()), 2),
@@ -94,6 +96,7 @@ def grade_run(run_dir: Path, quiet=False):
           f"- Model: `{summary['model']}`",
           f"- **Weighted score: {summary['weighted_score']:.1f} / 100** (tasks attempted: {len(attempted)}/{len(tasks)})",
           f"- Tasks solved: {summary['tasks_solved']} / {len(tasks)}",
+          f"- Weights: {summary['weights']}",
           f"- Truncated samples (finish_reason=length): {summary['truncated_samples']}; request errors: {summary['error_samples']}",
           f"- Mean completion tokens per sample: {summary['mean_completion_tokens']}", "",
           "| Tier | Tasks | Solved | Score |", "|---|---:|---:|---:|"]
