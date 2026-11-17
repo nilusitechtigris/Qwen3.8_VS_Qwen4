@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="318" viewBox="0 0 780 318" role="img" aria-labelledby="ti de">
+<title id="ti">Qwen3.8-27B: weighted score</title>
+<desc id="de">Weighted score 50.0 of 100. 79 of 100 tasks passed; passed: 227.0 of 454 weight points, wrong answer: 80.9 of 454 weight points, truncated (hit the token limit): 146.1 of 454 weight points</desc>
+
+<style>
+  svg { --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781; --grid:#e1e0d9; --axis:#c3c2b7;
+        --passed:#2a78d6; --wrong:#eb6834; --truncated:#1baf7a; }
+  @media (prefers-color-scheme: dark) {
+    svg { --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781; --grid:#2c2c2a; --axis:#383835;
+          --passed:#3987e5; --wrong:#d95926; --truncated:#199e70; }
+  }
+  text { font-family: system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: var(--ink); }
+  .t { font-size: 17px; font-weight: 600; }
+  .s { font-size: 12.5px; fill: var(--ink2); }
+  .l { font-size: 13px; }
+  .m { font-size: 12px; fill: var(--muted); }
+  .v { font-size: 12.5px; fill: var(--ink2); font-variant-numeric: tabular-nums; }
+  .in { font-size: 12px; font-weight: 600; fill: #ffffff; }
+  .hero { font-size: 60px; font-weight: 600; }
+  .tile { font-size: 22px; font-weight: 600; }
+  .bg { fill: var(--surface); }
+  .grid { stroke: var(--grid); stroke-width: 1; }
+  .axis { stroke: var(--axis); stroke-width: 1; }
+  .passed { fill: var(--passed); } .wrong { fill: var(--wrong); } .truncated { fill: var(--truncated); }
+  .ring { stroke: var(--surface); stroke-width: 2; }
+</style>
+<rect class="bg" x="0" y="0" width="780" height="318" rx="10"/>
+<text x="24.0" y="34.0" class="t" text-anchor="start">Qwen3.8-27B: weighted score</text>
+<text x="24.0" y="54.0" class="s" text-anchor="start">qwen3.8-27b-nvfp4-ollama · reasoning effort medium · max_tokens 32,768 · 1 sample(s) per task</text>
+<text x="24.0" y="124.0" class="hero" text-anchor="start">50.0</text>
+<text x="163.4" y="124.0" class="s" text-anchor="start">/ 100</text>
+<text x="300.0" y="98.0" class="tile" text-anchor="start">79/100</text>
+<text x="300.0" y="120.0" class="m" text-anchor="start">Tasks solved</text>
+<text x="420.0" y="98.0" class="tile" text-anchor="start">13</text>
+<text x="420.0" y="120.0" class="m" text-anchor="start">Truncated</text>
+<text x="540.0" y="98.0" class="tile" text-anchor="start">0</text>
+<text x="540.0" y="120.0" class="m" text-anchor="start">Request errors</text>
+<text x="660.0" y="98.0" class="tile" text-anchor="start">11.8 h</text>
+<text x="660.0" y="120.0" class="m" text-anchor="start">Model time</text>
+<text x="24.0" y="150.0" class="l" text-anchor="start">Where the 454 weight points went</text>
+<path class="passed" d="M28.00,160.00 H384.00 A4,4 0 0 1 388.00,164.00 V184.00 A4,4 0 0 1 384.00,188.00 H28.00 A4,4 0 0 1 24.00,184.00 V164.00 A4,4 0 0 1 28.00,160.00 Z"/>
+<text x="32.0" y="178.5" class="in" text-anchor="start">50.0%</text>
+<path class="wrong" d="M394.00,160.00 H514.41 A4,4 0 0 1 518.41,164.00 V184.00 A4,4 0 0 1 514.41,188.00 H394.00 A4,4 0 0 1 390.00,184.00 V164.00 A4,4 0 0 1 394.00,160.00 Z"/>
+<text x="398.0" y="178.5" class="in" text-anchor="start">17.8%</text>
+<path class="truncated" d="M524.41,160.00 H752.00 A4,4 0 0 1 756.00,164.00 V184.00 A4,4 0 0 1 752.00,188.00 H524.41 A4,4 0 0 1 520.41,184.00 V164.00 A4,4 0 0 1 524.41,160.00 Z"/>
+<text x="528.4" y="178.5" class="in" text-anchor="start">32.2%</text>
+<rect class="passed" x="24.0" y="204.0" width="12" height="12" rx="3"/>
+<text x="42.0" y="214.0" class="l" text-anchor="start">Passed: 79 tasks, 227.0 points earned</text>
+<rect class="wrong" x="306.5" y="204.0" width="12" height="12" rx="3"/>
+<text x="324.5" y="214.0" class="l" text-anchor="start">Wrong answer: 8 tasks, 80.9 points lost</text>
+<rect class="truncated" x="24.0" y="226.0" width="12" height="12" rx="3"/>
+<text x="42.0" y="236.0" class="l" text-anchor="start">Truncated (hit the token limit): 13 tasks, 146.1 points lost</text>
+<text x="24.0" y="280.0" class="m" text-anchor="start">With plain tier weights (1–5) the same answers score 72.3.</text>
+<text x="24.0" y="298.0" class="m" text-anchor="start">The calibrated weights (tasks/weights.json) count each task the pilot failed 2.6× more, so the pilot sits at 50.</text>
+</svg>
